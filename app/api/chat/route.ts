@@ -9,6 +9,10 @@ import {
   systemPrompt,
 } from "@/lib/ai-config";
 
+import {
+  analyzeCivicReport,
+} from "@/lib/civic-tool";
+
 export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } =
     await req.json();
@@ -20,6 +24,10 @@ export async function POST(req: Request) {
 
     messages:
       await convertToModelMessages(messages),
+
+    tools: {
+      analyzeCivicReport,
+    },
   });
 
   return result.toUIMessageStreamResponse();

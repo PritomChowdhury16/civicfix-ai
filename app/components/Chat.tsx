@@ -4,6 +4,17 @@ import { useChat } from "@ai-sdk/react";
 import ReactMarkdown from "react-markdown";
 import { useEffect, useRef, useState } from "react";
 
+import CivicAnalysisCard from "./CivicAnalysisCard";
+
+type CivicAnalysisResult = {
+  category: string;
+  description: string;
+  location: string;
+  severity: "Low" | "Medium" | "High";
+  priority: number;
+  recommendation: string;
+};
+
 export default function Chat() {
   const [input, setInput] = useState("");
 
@@ -14,13 +25,15 @@ export default function Chat() {
 
   const isThinking = status === "submitted";
 
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef =
+    useRef<HTMLDivElement>(null);
 
   const shouldAutoScrollRef = useRef(true);
 
   // Detect whether the user has manually scrolled up
   const handleScroll = () => {
-    const container = messagesContainerRef.current;
+    const container =
+      messagesContainerRef.current;
 
     if (!container) {
       return;
@@ -36,9 +49,9 @@ export default function Chat() {
   };
 
   // Automatically scroll to the newest message
-  // only when the user is already near the bottom
   useEffect(() => {
-    const container = messagesContainerRef.current;
+    const container =
+      messagesContainerRef.current;
 
     if (!container) {
       return;
@@ -79,6 +92,7 @@ export default function Chat() {
       <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-3 py-4 sm:px-4 sm:py-6">
 
         {/* Header */}
+
         <header className="mb-4 sm:mb-6">
           <h1 className="text-xl font-bold sm:text-2xl">
             AI Streaming Chat
@@ -90,13 +104,15 @@ export default function Chat() {
         </header>
 
         {/* Messages */}
+
         <div
           ref={messagesContainerRef}
           onScroll={handleScroll}
           className="flex-1 space-y-3 overflow-y-auto pb-4 sm:space-y-4 sm:pb-6"
         >
           {messages.map((message) => {
-            const isUser = message.role === "user";
+            const isUser =
+              message.role === "user";
 
             return (
               <div
@@ -115,23 +131,146 @@ export default function Chat() {
                   }`}
                 >
                   {/* Sender */}
+
                   <div className="mb-1 text-[11px] font-semibold opacity-70 sm:text-xs">
                     {isUser ? "You" : "AI"}
                   </div>
 
-                  {/* Message */}
-                  <div className="prose prose-invert max-w-none text-sm leading-6">
-                    {message.parts.map((part, index) => {
-                      if (part.type === "text") {
-                        return (
-                          <ReactMarkdown key={index}>
-                            {part.text}
-                          </ReactMarkdown>
-                        );
-                      }
+                  {/* Message Parts */}
 
-                      return null;
-                    })}
+                  <div className="space-y-3">
+
+                    {message.parts.map(
+                      (part, index) => {
+
+                        /* =========================
+                           NORMAL AI TEXT
+                        ========================= */
+
+                        if (
+                          part.type === "text"
+                        ) {
+                          return (
+                            <div
+                              key={index}
+                              className="prose prose-invert max-w-none text-sm leading-6"
+                            >
+                              <ReactMarkdown>
+                                {part.text}
+                              </ReactMarkdown>
+                            </div>
+                          );
+                        }
+
+                        /* =========================
+                           CIVIC ANALYSIS TOOL
+                        ========================= */
+
+                        if (
+                          part.type ===
+                          "tool-analyzeCivicReport"
+                        ) {
+
+                          /* =====================
+                             INPUT STREAMING
+                          ===================== */
+
+                          if (
+                            part.state ===
+                            "input-streaming"
+                          ) {
+                            return (
+                              <div
+                                key={index}
+                                className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4"
+                              >
+                                <div className="font-semibold text-blue-300">
+                                  🔵 Preparing Civic Analysis
+                                </div>
+
+                                <p className="mt-1 text-sm text-slate-400">
+                                  The AI is preparing the report information...
+                                </p>
+                              </div>
+                            );
+                          }
+
+                          /* =====================
+                             INPUT AVAILABLE
+                          ===================== */
+
+                          if (
+                            part.state ===
+                            "input-available"
+                          ) {
+                            return (
+                              <div
+                                key={index}
+                                className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4"
+                              >
+                                <div className="font-semibold text-yellow-300">
+                                  🟡 Analyzing Civic Report
+                                </div>
+
+                                <p className="mt-1 text-sm text-slate-400">
+                                  Report information received. Running analysis...
+                                </p>
+                              </div>
+                            );
+                          }
+
+                          /* =====================
+                             OUTPUT AVAILABLE
+                          ===================== */
+
+                          if (
+                            part.state ===
+                            "output-available"
+                          ) {
+                            const result =
+                              part.output as CivicAnalysisResult;
+
+                            return (
+                              <CivicAnalysisCard
+                                key={index}
+                                result={result}
+                              />
+                            );
+                          }
+
+                          /* =====================
+                             OUTPUT ERROR
+                          ===================== */
+
+                          if (
+                            part.state ===
+                            "output-error"
+                          ) {
+                            return (
+                              <div
+                                key={index}
+                                className="rounded-xl border border-red-500/30 bg-red-500/10 p-4"
+                              >
+                                <div className="font-semibold text-red-300">
+                                  🔴 Analysis Failed
+                                </div>
+
+                                <p className="mt-1 text-sm text-slate-400">
+                                  The civic report could not be analyzed.
+                                </p>
+
+                                <p className="mt-2 text-xs text-red-400">
+                                  {part.errorText}
+                                </p>
+                              </div>
+                            );
+                          }
+                        }
+
+                        return null;
+                      }
+                    )}
+
                   </div>
                 </div>
               </div>
@@ -139,6 +278,7 @@ export default function Chat() {
           })}
 
           {/* Thinking Indicator */}
+
           {isThinking && (
             <div className="flex justify-start">
               <div className="rounded-2xl bg-slate-800 px-3 py-2.5 text-sm text-slate-300 sm:px-4 sm:py-3">
@@ -155,11 +295,14 @@ export default function Chat() {
         </div>
 
         {/* Input Area */}
+
         <form
           onSubmit={handleSubmit}
           className="flex flex-col gap-2 border-t border-slate-800 pt-3 sm:flex-row sm:pt-4"
         >
+
           {/* Input */}
+
           <input
             value={input}
             onChange={(event) =>
@@ -171,6 +314,7 @@ export default function Chat() {
           />
 
           {/* Stop / Send */}
+
           {isLoading ? (
             <button
               type="button"
@@ -188,6 +332,7 @@ export default function Chat() {
               Send
             </button>
           )}
+
         </form>
       </div>
     </main>
