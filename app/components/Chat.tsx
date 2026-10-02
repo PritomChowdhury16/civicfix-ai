@@ -18,7 +18,14 @@ type CivicAnalysisResult = {
 export default function Chat() {
   const [input, setInput] = useState("");
 
-  const { messages, sendMessage, status, stop } = useChat();
+  const {
+    messages,
+    sendMessage,
+    status,
+    error,
+    regenerate,
+    stop,
+  } = useChat();
 
   const isLoading =
     status === "submitted" || status === "streaming";
@@ -30,7 +37,6 @@ export default function Chat() {
 
   const shouldAutoScrollRef = useRef(true);
 
-  // Detect whether the user has manually scrolled up
   const handleScroll = () => {
     const container =
       messagesContainerRef.current;
@@ -48,7 +54,6 @@ export default function Chat() {
       distanceFromBottom < 100;
   };
 
-  // Automatically scroll to the newest message
   useEffect(() => {
     const container =
       messagesContainerRef.current;
@@ -65,7 +70,6 @@ export default function Chat() {
     }
   }, [messages]);
 
-  // Send a new message
   const handleSubmit = async (
     event: React.FormEvent<HTMLFormElement>
   ) => {
@@ -75,11 +79,10 @@ export default function Chat() {
       return;
     }
 
-    const message = input;
+    const message = input.trim();
 
     setInput("");
 
-    // New message means we should follow the conversation
     shouldAutoScrollRef.current = true;
 
     await sendMessage({
@@ -87,12 +90,15 @@ export default function Chat() {
     });
   };
 
+  const handleExampleClick = (example: string) => {
+    setInput(example);
+  };
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-3 py-4 sm:px-4 sm:py-6">
 
         {/* Header */}
-
         <header className="mb-4 sm:mb-6">
           <h1 className="text-xl font-bold sm:text-2xl">
             AI Streaming Chat
@@ -104,12 +110,53 @@ export default function Chat() {
         </header>
 
         {/* Messages */}
-
         <div
           ref={messagesContainerRef}
           onScroll={handleScroll}
           className="flex-1 space-y-3 overflow-y-auto pb-4 sm:space-y-4 sm:pb-6"
         >
+
+          {/* Empty State */}
+          {messages.length === 0 && !error && (
+            <div className="flex min-h-[55vh] items-center justify-center">
+              <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-center sm:p-8">
+
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-500/10 text-2xl">
+                  🤖
+                </div>
+
+                <h2 className="text-lg font-bold sm:text-xl">
+                  Start a conversation
+                </h2>
+
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-400">
+                  Ask a question or describe a civic problem.
+                  The AI can analyze reports and provide a structured result.
+                </p>
+
+                <div className="mt-6 text-left">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Try an example
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleExampleClick(
+                        "Chattogram এ একটি রাস্তায় অনেক পানি জমে আছে। Location: Agrabad."
+                      )
+                    }
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-left text-sm text-slate-300 transition hover:border-blue-500 hover:bg-slate-900"
+                  >
+                    💧 Analyze a waterlogging report
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* Chat Messages */}
           {messages.map((message) => {
             const isUser =
               message.role === "user";
@@ -124,29 +171,22 @@ export default function Chat() {
                 }`}
               >
                 <div
-                  className={`max-w-[90%] rounded-2xl px-3 py-2.5 sm:max-w-[85%] sm:px-4 sm:py-3 ${
+                  className={`max-w-[92%] rounded-2xl px-3 py-2.5 sm:max-w-[85%] sm:px-4 sm:py-3 ${
                     isUser
                       ? "bg-blue-600 text-white"
                       : "bg-slate-800 text-slate-100"
                   }`}
                 >
-                  {/* Sender */}
-
                   <div className="mb-1 text-[11px] font-semibold opacity-70 sm:text-xs">
                     {isUser ? "You" : "AI"}
                   </div>
-
-                  {/* Message Parts */}
 
                   <div className="space-y-3">
 
                     {message.parts.map(
                       (part, index) => {
 
-                        /* =========================
-                           NORMAL AI TEXT
-                        ========================= */
-
+                        /* Text */
                         if (
                           part.type === "text"
                         ) {
@@ -162,19 +202,13 @@ export default function Chat() {
                           );
                         }
 
-                        /* =========================
-                           CIVIC ANALYSIS TOOL
-                        ========================= */
-
+                        /* Civic Tool */
                         if (
                           part.type ===
                           "tool-analyzeCivicReport"
                         ) {
 
-                          /* =====================
-                             INPUT STREAMING
-                          ===================== */
-
+                          /* Input streaming */
                           if (
                             part.state ===
                             "input-streaming"
@@ -184,21 +218,24 @@ export default function Chat() {
                                 key={index}
                                 className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4"
                               >
-                                <div className="font-semibold text-blue-300">
-                                  🔵 Preparing Civic Analysis
-                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-blue-400" />
 
-                                <p className="mt-1 text-sm text-slate-400">
-                                  The AI is preparing the report information...
-                                </p>
+                                  <div>
+                                    <div className="font-semibold text-blue-300">
+                                      Preparing Civic Analysis
+                                    </div>
+
+                                    <p className="mt-1 text-xs text-slate-400">
+                                      Preparing the report information...
+                                    </p>
+                                  </div>
+                                </div>
                               </div>
                             );
                           }
 
-                          /* =====================
-                             INPUT AVAILABLE
-                          ===================== */
-
+                          /* Input available */
                           if (
                             part.state ===
                             "input-available"
@@ -208,21 +245,24 @@ export default function Chat() {
                                 key={index}
                                 className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4"
                               >
-                                <div className="font-semibold text-yellow-300">
-                                  🟡 Analyzing Civic Report
-                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-yellow-400" />
 
-                                <p className="mt-1 text-sm text-slate-400">
-                                  Report information received. Running analysis...
-                                </p>
+                                  <div>
+                                    <div className="font-semibold text-yellow-300">
+                                      Analyzing Civic Report
+                                    </div>
+
+                                    <p className="mt-1 text-xs text-slate-400">
+                                      Report received. Running analysis...
+                                    </p>
+                                  </div>
+                                </div>
                               </div>
                             );
                           }
 
-                          /* =====================
-                             OUTPUT AVAILABLE
-                          ===================== */
-
+                          /* Output available */
                           if (
                             part.state ===
                             "output-available"
@@ -238,10 +278,7 @@ export default function Chat() {
                             );
                           }
 
-                          /* =====================
-                             OUTPUT ERROR
-                          ===================== */
-
+                          /* Tool error */
                           if (
                             part.state ===
                             "output-error"
@@ -251,15 +288,23 @@ export default function Chat() {
                                 key={index}
                                 className="rounded-xl border border-red-500/30 bg-red-500/10 p-4"
                               >
-                                <div className="font-semibold text-red-300">
-                                  🔴 Analysis Failed
+                                <div className="flex items-center gap-3">
+                                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/10">
+                                    ⚠️
+                                  </div>
+
+                                  <div>
+                                    <div className="font-semibold text-red-300">
+                                      Analysis failed
+                                    </div>
+
+                                    <p className="mt-1 text-xs text-slate-400">
+                                      The report could not be analyzed.
+                                    </p>
+                                  </div>
                                 </div>
 
-                                <p className="mt-1 text-sm text-slate-400">
-                                  The civic report could not be analyzed.
-                                </p>
-
-                                <p className="mt-2 text-xs text-red-400">
+                                <p className="mt-3 rounded-lg bg-slate-950/50 p-3 text-xs text-red-300">
                                   {part.errorText}
                                 </p>
                               </div>
@@ -277,63 +322,107 @@ export default function Chat() {
             );
           })}
 
-          {/* Thinking Indicator */}
-
+          {/* Thinking Skeleton */}
           {isThinking && (
             <div className="flex justify-start">
-              <div className="rounded-2xl bg-slate-800 px-3 py-2.5 text-sm text-slate-300 sm:px-4 sm:py-3">
-                <span className="font-semibold">
-                  AI
-                </span>
+              <div className="w-full max-w-[85%] rounded-2xl bg-slate-800 px-4 py-4">
 
-                <span className="ml-2 animate-pulse">
-                  Thinking...
-                </span>
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-blue-400" />
+
+                  <span className="text-xs font-semibold text-slate-300">
+                    AI is thinking...
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="h-3 w-4/5 animate-pulse rounded bg-slate-700" />
+                  <div className="h-3 w-full animate-pulse rounded bg-slate-700" />
+                  <div className="h-3 w-3/5 animate-pulse rounded bg-slate-700" />
+                </div>
+
               </div>
             </div>
           )}
-        </div>
 
-        {/* Input Area */}
+          {/* Chat Request Error */}
+          {error && (
+            <div className="flex justify-start">
+              <div className="w-full max-w-[92%] rounded-2xl border border-red-500/30 bg-red-500/10 p-4 sm:max-w-[85%]">
 
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-2 border-t border-slate-800 pt-3 sm:flex-row sm:pt-4"
-        >
+                <div className="flex items-start gap-3">
 
-          {/* Input */}
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500/10">
+                    ⚠️
+                  </div>
 
-          <input
-            value={input}
-            onChange={(event) =>
-              setInput(event.target.value)
-            }
-            placeholder="Ask something..."
-            disabled={isLoading}
-            className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-blue-500 disabled:opacity-50"
-          />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-red-300">
+                      We couldn't complete that response
+                    </h3>
 
-          {/* Stop / Send */}
+                    <p className="mt-1 text-sm leading-6 text-slate-400">
+                      Your message is still here. You can retry the failed response without starting the conversation again.
+                    </p>
 
-          {isLoading ? (
-            <button
-              type="button"
-              onClick={stop}
-              className="w-full rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white hover:bg-red-500 sm:w-auto"
-            >
-              Stop
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={!input.trim()}
-              className="w-full rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
-            >
-              Send
-            </button>
+                    <button
+                      type="button"
+                      onClick={() => regenerate()}
+                      disabled={isLoading}
+                      className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isLoading
+                        ? "Retrying..."
+                        : "Retry response"}
+                    </button>
+                  </div>
+
+                </div>
+
+              </div>
+            </div>
           )}
 
+        </div>
+
+        {/* Input */}
+        <form
+          onSubmit={handleSubmit}
+          className="border-t border-slate-800 pt-3 sm:pt-4"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row">
+
+            <input
+              value={input}
+              onChange={(event) =>
+                setInput(event.target.value)
+              }
+              placeholder="Ask something..."
+              disabled={isLoading}
+              className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-blue-500 disabled:opacity-50"
+            />
+
+            {isLoading ? (
+              <button
+                type="button"
+                onClick={stop}
+                className="w-full rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-500 sm:w-auto"
+              >
+                Stop
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!input.trim()}
+                className="w-full rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              >
+                Send
+              </button>
+            )}
+
+          </div>
         </form>
+
       </div>
     </main>
   );
